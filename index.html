@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#071522">
+<title>Misthi's Lantern Shore ✨</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071522;color:#fff4d7;font-family:Georgia,serif}
+  #scene{position:fixed;inset:0}
+  canvas{display:block;width:100%;height:100%;touch-action:pan-y}
+  .veil{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(4,13,26,.38),transparent 34%,transparent 70%,rgba(3,12,21,.48))}
+  .copy{position:fixed;z-index:2;top:max(28px,env(safe-area-inset-top));left:0;right:0;text-align:center;padding:0 18px;pointer-events:none;text-shadow:0 2px 18px #020914}
+  .kicker{font:10px/1.4 system-ui,sans-serif;letter-spacing:.34em;text-transform:uppercase;color:#f7dca2}
+  h1{font-size:clamp(35px,8vw,66px);font-weight:400;line-height:1.05;margin:10px 0 7px;color:#ffe5ad}
+  h1 em{color:#ffb4a0;font-weight:400}
+  .sub{font-size:clamp(13px,3.2vw,17px);color:#f5e7d2}
+  .bottom{position:fixed;z-index:3;left:0;right:0;bottom:max(22px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:12px;padding:0 16px;pointer-events:none}
+  .note{max-width:440px;text-align:center;font-size:clamp(13px,3.2vw,16px);line-height:1.6;color:#f8e8d3;text-shadow:0 2px 14px #020914}
+  button{pointer-events:auto;border:1px solid #ffe2ad88;border-radius:999px;padding:12px 22px;color:#332019;background:linear-gradient(135deg,#ffe7b2,#e9b46d);font:600 13px system-ui,sans-serif;letter-spacing:.02em;box-shadow:0 5px 24px #f5bc6b33;cursor:pointer}
+  button:active{transform:scale(.97)}
+  #hint{font:10px system-ui,sans-serif;letter-spacing:.12em;color:#f5d9a5a8;text-transform:uppercase}
+  #fallback{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:30px;color:#ffe5ad;background:linear-gradient(#0a1b2b,#163b4a)}
+</style>
+</head>
+<body>
+<div id="scene"></div><div class="veil"></div>
+<div class="copy">
+  <div class="kicker">a little wish, carried by the sea</div>
+  <h1>For <em>Misthi</em> ✨</h1>
+  <div class="sub">A thousand little lights, just for you.</div>
+</div>
+<div class="bottom">
+  <div class="note">You only got to see two lanterns…<br>so tonight, the whole shore is glowing for you. 🪔</div>
+  <button id="wish">Release a little more light ✦</button>
+  <div id="hint">Tap the water to send a wish</div>
+</div>
+<div id="fallback">This scene needs WebGL.<br>Please open it in a browser with hardware acceleration enabled.</div>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { Water } from 'three/addons/objects/Water.js';
+
+const host=document.getElementById('scene');
+let renderer;
+try {
+ renderer=new THREE.WebGLRenderer({antialias:!(/Android|iPhone|iPad/i.test(navigator.userAgent)),alpha:false,powerPreference:'low-power'});
+} catch(e){document.getElementById('fallback').style.display='grid';throw e}
+const mobile=matchMedia('(max-width:700px)').matches;
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,mobile?1.25:1.65));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+host.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x091827);
+scene.fog=new THREE.FogExp2(0x0b2030,.012);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,180);
+camera.position.set(0,8.2,23);
+camera.lookAt(0,3.4,-5);
+
+scene.add(new THREE.HemisphereLight(0x9ebed1,0x17202b,1.25));
+const moonLight=new THREE.DirectionalLight(0xffdca5,2.0);
+moonLight.position.set(-7,12,-8);scene.add(moonLight);
+const warm=new THREE.PointLight(0xffad58,45,34,2);
+warm.position.set(0,4,-1);scene.add(warm);
+
+// Distant sky and moon
+const sky=new THREE.Mesh(new THREE.SphereGeometry(100,24,16),new THREE.MeshBasicMaterial({color:0x0b1b30,side:THREE.BackSide}));
+scene.add(sky);
+const moon=new THREE.Mesh(new THREE.SphereGeometry(1.25,24,20),new THREE.MeshStandardMaterial({color:0xffedc2,emissive:0xffd58a,emissiveIntensity:.65,roughness:1}));
+moon.position.set(8,10,-25);scene.add(moon);
+const halo=new THREE.Mesh(new THREE.SphereGeometry(2.05,24,20),new THREE.MeshBasicMaterial({color:0xffd89a,transparent:true,opacity:.07,side:THREE.BackSide}));
+halo.position.copy(moon.position);scene.add(halo);
+
+// Distant shoreline and soft silhouettes
+const landMat=new THREE.MeshStandardMaterial({color:0x172d35,roughness:1});
+const shore=new THREE.Mesh(new THREE.PlaneGeometry(100,24),landMat);
+shore.rotation.x=-Math.PI/2;shore.position.set(0,-.15,-27);scene.add(shore);
+for(let i=0;i<18;i++){
+ const h=1.3+Math.random()*3.5;
+ const tree=new THREE.Mesh(new THREE.ConeGeometry(.45+Math.random()*.35,h,5),new THREE.MeshStandardMaterial({color:0x10252d,roughness:1}));
+ tree.position.set(-28+i*3.4,h/2-0.1,-19-Math.random()*5);scene.add(tree);
+}
+
+// Water surface: Three.js reflective water shader, restrained resolution for phones
+const waterGeometry=new THREE.PlaneGeometry(100,100);
+const water=new Water(waterGeometry,{
+ textureWidth:mobile?256:512,textureHeight:mobile?256:512,
+ waterNormals:new THREE.TextureLoader().load('https://threejs.org/examples/textures/waternormals.jpg',t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping}),
+ sunDirection:new THREE.Vector3(-.4,1,.3).normalize(),
+ sunColor:0xffd59a,waterColor:0x082b3b, distortionScale:mobile?1.8:2.7,
+ fog:true
+});
+water.rotation.x=-Math.PI/2;water.position.y=.02;scene.add(water);
+
+// Sandy beach foreground
+const sand=new THREE.Mesh(new THREE.PlaneGeometry(100,24),new THREE.MeshStandardMaterial({color:0x4c3a32,roughness:1}));
+sand.rotation.x=-Math.PI/2;sand.position.set(0,-.12,19);scene.add(sand);
+const beachEdge=new THREE.Mesh(new THREE.BoxGeometry(100,.13,1.8),new THREE.MeshStandardMaterial({color:0x9a7554,roughness:1}));
+beachEdge.position.set(0,-.04,7.7);scene.add(beachEdge);
+
+// Small wooden bridge across the water, with arched-looking deck and railings
+const bridge=new THREE.Group();scene.add(bridge);
+const wood=new THREE.MeshStandardMaterial({color:0x68452f,roughness:.82});
+const darkWood=new THREE.MeshStandardMaterial({color:0x3d302a,roughness:.9});
+const deck=new THREE.Mesh(new THREE.BoxGeometry(5.5,.22,1.55),wood);deck.position.set(0,1.02,-4);bridge.add(deck);
+for(let i=0;i<13;i++){
+ const plank=new THREE.Mesh(new THREE.BoxGeometry(.38,.045,1.58),new THREE.MeshStandardMaterial({color:i%2?0x886044:0x755039,roughness:.9}));
+ plank.position.set(-2.45+i*.408,1.15,-4);bridge.add(plank);
+}
+for(const side of [-1,1]){
+ const rail=new THREE.Mesh(new THREE.BoxGeometry(5.55,.13,.13),darkWood);rail.position.set(0,1.85,-4+side*.72);bridge.add(rail);
+ for(let i=0;i<9;i++){
+  const post=new THREE.Mesh(new THREE.BoxGeometry(.13,.85,.13),wood);post.position.set(-2.65+i*.66,1.48,-4+side*.72);bridge.add(post);
+ }
+}
+// Bridge support posts
+for(let x of [-2.25,2.25])for(let z of [-4.55,-3.45]){
+ const p=new THREE.Mesh(new THREE.CylinderGeometry(.12,.16,2.3,7),darkWood);p.position.set(x,.0,z);bridge.add(p);
+}
+
+// Tiny warm lamps on the bridge
+for(let x of [-2.4,0,2.4]){
+ const bulb=new THREE.Mesh(new THREE.SphereGeometry(.09,10,8),new THREE.MeshBasicMaterial({color:0xffc56d}));
+ bulb.position.set(x,1.95,-4);bridge.add(bulb);
+ const l=new THREE.PointLight(0xffa94f,2.2,4);l.position.set(x,2,-4);scene.add(l);
+}
+
+// Lanterns: light paper body + inner glow, floating upward from sea to sky
+const lanterns=[];
+const lanternGeo=new THREE.CylinderGeometry(.27,.34,.75,8,1,false);
+const lanternMat=new THREE.MeshStandardMaterial({color:0xff741c,emissive:0xff6508,emissiveIntensity:2.8,roughness:.48,metalness:0});
+const capGeo=new THREE.CylinderGeometry(.34,.34,.07,8);
+const capMat=new THREE.MeshStandardMaterial({color:0x6e3e2a,roughness:.9});
+const glowMat=new THREE.MeshBasicMaterial({color:0xff7a12,transparent:true,opacity:.34,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
+function makeLantern(initial=false){
+ const g=new THREE.Group();
+ const body=new THREE.Mesh(lanternGeo,lanternMat);g.add(body);
+ const top=new THREE.Mesh(capGeo,capMat);top.position.y=.39;g.add(top);
+ const bottom=new THREE.Mesh(capGeo,capMat);bottom.position.y=-.39;g.add(bottom);
+ const glow=new THREE.Mesh(new THREE.SphereGeometry(.88,12,10),glowMat);g.add(glow);
+ const flame=new THREE.Mesh(new THREE.SphereGeometry(.12,8,8),new THREE.MeshBasicMaterial({color:0xffc15a}));
+ flame.position.y=-.1;g.add(flame);
+ const scale=.48+Math.random()*.5;g.scale.setScalar(scale);
+ const item={g,speed:.48+Math.random()*.65,phase:Math.random()*6.28,scale};
+ resetLantern(item,initial);scene.add(g);lanterns.push(item);
+}
+function resetLantern(o,initial=false){
+ o.g.position.set((Math.random()-.5)*27,initial?Math.random()*13-.2:-1-Math.random()*2,-12-Math.random()*20);
+ o.phase=Math.random()*6.28;
+}
+const lanternCount=mobile?24:38;
+for(let i=0;i<lanternCount;i++)makeLantern(true);
+
+// Tiny distant lights along the shore
+const starGeo=new THREE.BufferGeometry(),starPos=[];
+for(let i=0;i<240;i++)starPos.push((Math.random()-.5)*80,3+Math.random()*20,-35-Math.random()*25);
+starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
+scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffe3b0,size:.12,transparent:true,opacity:.75})));
+
+// Tap water / button adds a small burst of lanterns, capped to protect phone performance
+function addLanterns(n=4){for(let i=0;i<n;i++){if(lanterns.length<mobile?34:55)makeLantern(false)}}
+document.getElementById('wish').addEventListener('click',()=>addLanterns(5));
+const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown',e=>{
+ pointer.x=e.clientX/innerWidth*2-1;pointer.y=-(e.clientY/innerHeight)*2+1;
+ raycaster.setFromCamera(pointer,camera);
+ const hit=raycaster.intersectObject(water);
+ if(hit.length)addLanterns(2);
+});
+
+// Animate gently, with capped delta for stable mobile frame pacing
+const clock=new THREE.Clock();
+function animate(){
+ requestAnimationFrame(animate);
+ const dt=Math.min(clock.getDelta(),.04),t=clock.elapsedTime;
+ water.material.uniforms['time'].value+=dt*.42;
+ water.material.uniforms['distortionScale'].value=(mobile?1.8:2.7)+Math.sin(t*.3)*.15;
+ for(const o of lanterns){
+  o.g.position.y+=o.speed*dt;
+  o.g.position.x+=Math.sin(t*.45+o.phase)*dt*.23;
+  o.g.rotation.z=Math.sin(t*.8+o.phase)*.07;
+  if(o.g.position.y>15)resetLantern(o,false);
+ }
+ camera.position.x=Math.sin(t*.11)*.28;
+ camera.lookAt(0,3.4,-5);
+ renderer.render(scene,camera);
+}
+animate();
+
+let resizeTimer;
+addEventListener('resize',()=>{
+ clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{
+ camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,mobile?1.25:1.65));
+ renderer.setSize(innerWidth,innerHeight);
+ },120);
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clock.stop();else clock.start()});
+</script>
+</body>
+</html>
